@@ -2,9 +2,9 @@ rm(list=ls())
 
 #################################################################################################
 ## FRONTEND MODULE: PPSV23 MODEL
-## Author: Emmanuel F. Drabo, MPhil, PhD
-## Assistant Professor of Health Economic Evaluation
-## Johns Hopkins Bloomberg School of Public Health
+## Author: [BLINDED FOR REVIEW]
+## [BLINDED FOR REVIEW]
+## [BLINDED FOR REVIEW]
 #################################################################################################
 
 ##******************************************************************************
@@ -21,7 +21,7 @@ ppsv23_packages <- c(
 ##* Directories
 ##******************************************************************************
 ## Parameters file path
-ppsv23_model_dir <- "/Users/emmanuel/Dropbox/vaccines/VBC - SCD/PPSV23 model/PPSV23 CEM Thesis/Value in Health/Submission Materials/RR1/model"
+ppsv23_model_dir <- "~/model"
 ppsv23_library_dir <- file.path(ppsv23_model_dir, "library")
 
 ##******************************************************************************
