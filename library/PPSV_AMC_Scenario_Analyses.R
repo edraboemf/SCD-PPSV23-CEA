@@ -151,6 +151,22 @@ interp_data_all <- amc_sensi_cea_results %>%
 # tail(interp_data_all)
 # max(interp_data_all$icer)
 
+interp_data_all %>%
+  filter(amc_dose_subsidy == 0.1) %>%
+  pull(icer) %>%
+  max(na.rm = TRUE)
+
+interp_data_all %>%
+  filter(amc_dose_subsidy == 0.2) %>%
+  pull(icer) %>%
+  max(na.rm = TRUE)
+
+interp_data_all %>%
+  filter(amc_dose_subsidy == 0.3) %>%
+  pull(icer) %>%
+  max()
+
+
 ## Plot with smooth filled contours
 p_amc_sensi <- interp_data_all %>%
   mutate(amc_dose_subsidy = factor(

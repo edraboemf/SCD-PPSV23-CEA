@@ -25,6 +25,11 @@ if(isTRUE(print_base_case_results)){
       set_names(c("variable", "NoPPSV23", "PPSV23")) %>% 
       print(n = Inf, row.names = FALSE)
   
+  
+    scales::comma_format()(base_cea_results_3gdp$inc_cost_hc)
+    scales::comma_format()(diff(base_cea_results_3gdp$cost_direct))
+  
+    scales::comma_format()(base_cea_results_3gdp$cost_direct)
     scales::comma_format()(base_cea_results_3gdp$cost_vacc)
     scales::comma_format()(base_cea_results_3gdp$scd_birth_cohort)
     scales::comma_format()(base_cea_results_3gdp$cost_coi_hc_num)
@@ -44,36 +49,37 @@ if(isTRUE(print_base_case_results)){
     scales::comma_format()(base_cea_results_3gdp$inc_deaths)
     100*(base_cea_results_3gdp$inc_deaths[2]/base_cea_results_3gdp$deaths[1])
     
-    base_cea_results_3gdp$deaths[2]
+  #   base_cea_results_3gdp$deaths[2]
+  # 
+  #   465466 / (base_cea_results_3gdp$wtp_who_gdp/3)[1]  
+  #   120787 / (base_cea_results_3gdp$wtp_who_gdp/3)[1]  
+  #   977912 / (base_cea_results_3gdp$wtp_who_gdp/3)[1]  
+  # 
+  # 
+  #   base_cea_results_3gdp$cost_vacc/base_cea_results_3gdp$vacc_total
+  # 
+  #   scales::comma_format()(23124729853.0218 * (1 + 0.027) * (1 + 0.047))
+  #   scales::comma_format()(23124729853.0218 * (1 + 0.027) * (1 + 0.047) * 0.0779943228)
   
-    465466 / (base_cea_results_3gdp$wtp_who_gdp/3)[1]  
-    120787 / (base_cea_results_3gdp$wtp_who_gdp/3)[1]  
-    977912 / (base_cea_results_3gdp$wtp_who_gdp/3)[1]  
-  
-  
-    scales::comma_format()(23124729853.0218 * (1 + 0.027) * (1 + 0.047))
-    scales::comma_format()(23124729853.0218 * (1 + 0.027) * (1 + 0.047) * 0.0779943228)
-  
-    round(100 * base_cea_results_3gdp$cost_vacc[1] / (23124729853.0218 * (1 + 0.027) * (1 + 0.047) * 0.0779943228), 5)
-  
-    base_cea_results_3gdp$cost_vacc[2]  
-  
-    124*1.007*1.004*1.015*1.020*0.968*1.019*1.037*1.143*1.007*1.042
+  #   round(100 * base_cea_results_3gdp$cost_vacc[1] / (23124729853.0218 * (1 + 0.027) * (1 + 0.047) * 0.0779943228), 5)
+  # 
+  #   base_cea_results_3gdp$cost_vacc[2]  
+  # 
+  #   124*1.007*1.004*1.015*1.020*0.968*1.019*1.037*1.143*1.007*1.042
 }
 
-scales::comma_format()(204395 *500) 
+# scales::comma_format()(204395 *500) 
+# 
+# diff(base_cea_results_3gdp$deaths)
+# 
+# base_cea_results_3gdp$inc_hosp
+# base_cea_results_3gdp$inc_deaths
+# 
+# c(758876, 712005, 806586)/12977
+# 
+# 100*(c(758876, 712005, 806586)/12977)/1005
+# names(base_cea_results_3gdp)
 
-diff(base_cea_results_3gdp$deaths)
-
-base_cea_results_3gdp$inc_hosp
-base_cea_results_3gdp$inc_deaths
-
-c(758876, 712005, 806586)/12977
-
-100*(c(758876, 712005, 806586)/12977)/1005
-
-
-names(base_cea_results_3gdp)
 #################################################################################################
 ## END OF MODULE
 #################################################################################################

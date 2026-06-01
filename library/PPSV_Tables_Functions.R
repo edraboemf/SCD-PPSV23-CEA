@@ -8,7 +8,7 @@
 ## Function to reshape and prepare results
 prepare_table_data <- function(df, panel_label) {
   df %>% 
-    mutate(
+    dplyr::mutate(
       `Costs` = cost,
       `DALYs` = dalys,
       `NMB` = nmb,
@@ -21,17 +21,21 @@ prepare_table_data <- function(df, panel_label) {
       ICER = icer,
       Panel = panel_label
     ) %>%
-    select(
+    dplyr::select(
       Panel, Strategy = strategy,
       `Costs`, `DALYs`, `NMB`, `NHB`,
       `div`,
-      `ΔCosts`, `ΔDALYs`, `ΔNMB`, `ΔNHB`, ICER
+      `ΔCosts`, `ΔDALYs`, `ΔNMB`, `ΔNHB`, ICER,
+      `div`,
+      `Infections`, `Hospitalizations`, `Deaths`,
+      `div`,
+      `ΔInfections`, `ΔHospitalizations`, `ΔDeaths`
     )
 }
 
 ## Base case
 base_cea_results_new <- base_cea_results %>%
-  mutate(
+  dplyr::mutate(
     strategy = factor(strategy, levels = c(1,2), labels = c("PCV13", "PPSV23")),
     cost = sprintf("%s", comma2(cost)),
     dalys = sprintf("%s", comma2(dalys)),
@@ -44,13 +48,24 @@ base_cea_results_new <- base_cea_results %>%
     inmb = sprintf("%s", comma2(inmb)),
     inhb = sprintf("%s", comma2(inhb))
   ) %>%
-  select(strategy, cost, dalys, nmb, nhb, div, inc_cost, inc_dalys, icer, inmb, inhb)
+  dplyr::select(
+    strategy, 
+    cost, dalys, 
+    nmb, nhb, 
+    div, 
+    inc_cost, inc_dalys, 
+    icer, inmb, inhb,
+    div, 
+    Infections, Hospitalizations, Deaths,
+    div,
+    `ΔInfections`, `ΔHospitalizations`, `ΔDeaths`
+  )
 
 table_base <- prepare_table_data(base_cea_results_new, "Base case")
 
 ## Uncertainty analysis
 psa_summary_results_new <- psa_summary_results %>%
-  mutate(
+  dplyr::mutate(
     cost = sprintf("%s\n(%s, %s)", comma2(cost), comma2(cost_lower), comma2(cost_upper)),
     dalys = sprintf("%s\n(%s, %s)", comma2(dalys), comma2(dalys_lower), comma2(dalys_upper)),
     nmb = sprintf("%s\n(%s, %s)", comma2(nmb), comma2(nmb_lower), comma2(nmb_upper)),
@@ -62,7 +77,18 @@ psa_summary_results_new <- psa_summary_results %>%
     inmb = sprintf("%s\n(%s, %s)", comma2(inmb), comma2(inmb_lower), comma2(inmb_upper)),
     inhb = sprintf("%s\n(%s, %s)", comma2(inhb), comma2(inhb_lower), comma2(inhb_upper))
   ) %>%
-  select(strategy, cost, dalys, nmb, nhb, div, inc_cost, inc_dalys, icer, inmb, inhb)
+  dplyr::select(
+    strategy, 
+    cost, dalys, 
+    nmb, nhb, 
+    div, 
+    inc_cost, inc_dalys, 
+    icer, inmb, inhb,
+    div, 
+    Infections, Hospitalizations, Deaths,
+    div,
+    `ΔInfections`, `ΔHospitalizations`, `ΔDeaths`
+  )
 
 table_sens <- prepare_table_data(psa_summary_results_new, "Uncertainty analysis")
 
@@ -70,7 +96,7 @@ table_sens <- prepare_table_data(psa_summary_results_new, "Uncertainty analysis"
 final_table <- bind_rows(table_base, table_sens) %>%
   add_row(Panel = "Base case", Strategy = "Base case") %>% 
   add_row(Panel = "Uncertainty analysis", Strategy = "Uncertainty analysis") %>%
-  mutate(order = case_when(
+  dplyr::mutate(order = case_when(
     Panel == "Base case" & Strategy == "Base case" ~ 1,
     Panel == "Base case" & Strategy == "PCV13" ~ 2,
     Panel == "Base case" & Strategy == "PPSV23" ~ 3,
@@ -79,15 +105,24 @@ final_table <- bind_rows(table_base, table_sens) %>%
     Panel == "Uncertainty analysis" & Strategy == "PPSV23" ~ 6
   )
   ) %>%
-  arrange(order) %>%
-  select(!c(order, Panel)) %>%    
+  dplyr::arrange(order) %>%
+  dplyr::select(!c(order, Panel)) %>%    
   as.data.table()
 
 # final_table
 
 ## Create flextable with section grouping
 final_table_ft <- flextable(final_table) %>%
-  add_header_row(colwidths = c(1, 4, 1, 5), values = c("", "Total Effects", "", "Incremental Effects")) %>% 
+  add_header_row(
+    colwidths = c(
+      1, 4, 1, 5, 
+      1, 3, 1, 3
+    ), 
+    values = c(
+      "", "Total Effects", "", "Incremental Effects", 
+      "", "Total Cases", "", "Incremental Cases"
+  )
+  ) %>% 
   #theme_booktabs() %>%
   theme_vanilla() %>%
   autofit() %>%

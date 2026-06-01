@@ -51,7 +51,8 @@ format_lancet <- function(x, digits = NULL, percent = FALSE) {
     x,
     format = "f",
     big.mark = ",",   
-    decimal.mark = "·",
+    # decimal.mark = "·",
+    decimal.mark = ".",
     digits = digits
   )
   

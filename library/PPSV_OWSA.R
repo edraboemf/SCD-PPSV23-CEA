@@ -25,6 +25,12 @@ owsa_output_3gdp <- run_owsa(
   alive_pop = NULL
 )
 
+
+owsa_output_3gdp$owsa_table %>%
+  mutate(parameter = as.character(parameter)) %>%
+  filter(parameter %in% c("inc_ipd_pcv13", "prop_ipd_cov_by_ppsv23", "c_vaccine_ppsv23")) 
+
+
 ## produce Tornado Plot
 source(file.path(ppsv23_library_dir, "PPSV_TornadoPlot.R"))
 

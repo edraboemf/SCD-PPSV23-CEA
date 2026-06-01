@@ -229,10 +229,10 @@ fit_distribution_from_ci <- function(
 
   ## Negative binomial
   if(dist_clean %in% c("negbinomial", "neg_binomial")) {
-    var_est <- ((par_upper - par_lower)/4)^2
+    var_est <- ((par_upper - par_lower) / 4)^2
     r <- par_mean^2 / (var_est - par_mean)
     p <- r / (r + par_mean)
-    var <- r * (1 - p) / p^2
+    var <- r * (1 - p) / (p^2)
     return(list(size = r, prob = p, variance = var))
   }
 }
@@ -314,10 +314,7 @@ rpert <- function(n, min, mode, max, lambda = 4, ncp = 0) {
   return(min + x * (max - min))
 }
 
-
-
-
-
+## function to draw parameters
 draw_param_func <- function(fit_obj, n_sim = 1000) {
   
   n_param <- nrow(fit_obj)
@@ -328,18 +325,18 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
   
   for (i in seq_len(n_param)) {
     
-    # helper (replacement for %||%)
+    ## helper function (replacement for %||%)
     get_val <- function(x, alt) {
       if (!is.null(x) && !is.na(x[i])) x[i] else alt
     }
     
-    # NA / constant
+    ## NA / constant
     if (is.na(dist_clean[i]) || dist_clean[i] == "" || dist_clean[i] == "na") {
       out[, i] <- rep(fit_obj$mean[i], n_sim)
       next
     }
     
-    # Beta
+    ## Beta distribution
     if (dist_clean[i] == "beta") {
       out[, i] <- rbeta(
         n_sim,
@@ -349,7 +346,7 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
       next
     }
     
-    # Gamma
+    ## Gamma distribution
     if (dist_clean[i] == "gamma") {
       out[, i] <- rgamma(
         n_sim,
@@ -359,7 +356,7 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
       next
     }
     
-    # Lognormal
+    ## Lognormal distribution
     if (dist_clean[i] == "lognormal") {
       out[, i] <- rlnorm(
         n_sim,
@@ -369,7 +366,7 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
       next
     }
     
-    # Normal
+    ## Normal distribution
     if (dist_clean[i] == "normal") {
       out[, i] <- rnorm(
         n_sim,
@@ -379,7 +376,7 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
       next
     }
     
-    # PERT
+    ## PERT distribution
     if (dist_clean[i] == "pert") {
       min_val <- get_val(fit_obj$min, get_val(fit_obj$lower, 0))
       max_val <- get_val(fit_obj$max, get_val(fit_obj$upper, 1))
@@ -401,13 +398,13 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
       next
     }
     
-    # Poisson
+    ## Poisson distribution
     if (dist_clean[i] == "poisson") {
       out[, i] <- rpois(n_sim, lambda = fit_obj$lambda[i])
       next
     }
     
-    # Binomial
+    ## Binomial distribution
     if (dist_clean[i] == "binomial") {
       out[, i] <- rbinom(
         n_sim,
@@ -417,7 +414,7 @@ draw_param_func <- function(fit_obj, n_sim = 1000) {
       next
     }
     
-    # Negative Binomial
+    ## Negative Binomial distribution
     if (dist_clean[i] %in% c("negbinomial", "neg_binomial")) {
       out[, i] <- rnbinom(
         n_sim,
@@ -498,12 +495,12 @@ ceac_data_func <- function(wtp, data = psa_results_3gdp) {
     dplyr::select(sim, strategy, nmb) %>%
     pivot_wider(names_from = strategy, values_from = c(nmb)) %>%
     dplyr::select(!sim) %>%
-    mutate(best_strategy = ifelse(PPSV23 > PCV13, "PPSV23", "PCV13")) %>%
+    dplyr::mutate(best_strategy = ifelse(PPSV23 > PCV13, "PPSV23", "PCV13")) %>%
     dplyr::summarise(
       pcv13_prob = mean(best_strategy == "PCV13"),
       pcv13_n = sum(!is.na(best_strategy)),
     ) %>%
-    mutate(
+    dplyr::mutate(
       pcv13_se = sqrt(pcv13_prob * (1 - pcv13_prob) / pcv13_n),
       pcv13_lower = max(0, pcv13_prob - 1.96 * pcv13_se),
       pcv13_upper = min(1, pcv13_prob + 1.96 * pcv13_se),
@@ -519,6 +516,108 @@ ceac_data_func <- function(wtp, data = psa_results_3gdp) {
   return(val)
 }
 
+##**************************
+## Utility functions for the means/medians and cis
+##**************************
+## Wilson ci function
+wilson_ci <- function(x, conf = 0.95) {
+  n <- length(x)
+  p <- mean(x, na.rm = TRUE)
+  z <- qnorm(1 - (1 - conf)/2)    
+  denom <- 1 + (z^2) / n
+  center <- (p + (z^2) / (2 * n)) / denom
+  half_width <- z * sqrt((p * (1 - p) / n) + (z^2) / (4 * (n^2))) / denom
+  c(
+    lower = center - half_width, 
+    upper = center + half_width
+  )
+}
+
+## function to get bootstrap ci
+boot_ci_func <- function(
+  x, 
+  stat = c("median", "mean")[2], 
+  R = 2000, 
+  type = c("norm", "basic", "perc", "bca")[3]
+) {  
+
+  ## verifying that the statistic is acceptable
+  stat <- match.arg(
+    arg = stat,
+    choices = c("median", "mean"),
+    several.ok = FALSE
+  ) 
+
+  ## function to calculate the bootstrap statistic
+  boot_stat <- function(data, indices) {
+    d <- data[indices]
+    if(stat == "median"){
+      median(d, na.rm = TRUE)
+    } else {
+      mean(d, na.rm = TRUE)
+    }
+  }
+
+  ## function to get normal ci
+  normal_ci <- function(x, conf = 0.95) {
+    n <- length(x)
+    m <- mean(x, na.rm = TRUE)
+    s <- sd(x, na.rm = TRUE)
+    error <- qt(1 - (1 - conf) / 2, df = n - 1) * (s / sqrt(n))
+    c(lower = m - error, upper = m + error)
+  }
+
+  ## create the bootstrap object from the PSA sample
+  boot_obj <- boot::boot(
+    data = x,
+    statistic = boot_stat,
+    R = R
+  )    
+
+  ## point estimate
+  if(stat == "median"){
+      boot_mean_median <- median(boot_obj$t, na.rm = TRUE)
+  }else{
+      boot_mean_median <- mean(boot_obj$t, na.rm = TRUE)
+  }
+
+  ## confidence interval around the point estimate
+  boot_ci_val <- try(boot::boot.ci(boot_obj, type = type), silent = TRUE)  
+
+  if (!inherits(boot_ci_val, "try-error")) {
+    if ((type == "norm") && (!is.null(boot_ci_val$normal))) {
+      return(c(estimate = boot_mean_median, lower = boot_ci_val$normal[2], upper = boot_ci_val$normal[3]))
+    }
+    if ((type == "basic") && (!is.null(boot_ci_val$basic))) {
+      return(c(estimate = boot_mean_median, lower = boot_ci_val$basic[4], upper = boot_ci_val$basic[5]))
+    }
+    if ((type == "perc") && (!is.null(boot_ci_val$percent))) {
+      return(c(estimate = boot_mean_median, lower = boot_ci_val$percent[4], upper = boot_ci_val$percent[5]))
+    }
+    if ((type == "bca") && (!is.null(boot_ci_val$bca))) {
+      return(c(estimate = boot_mean_median, lower = boot_ci_val$bca[4], upper = boot_ci_val$bca[5]))
+    }
+  } else {
+    fallback_order <- c("perc", "basic", "norm")
+    for (t in fallback_order) {
+      boot_ci_val <- try(boot::boot.ci(boot_obj, type = t), silent = TRUE)        
+      if (!inherits(boot_ci_val, "try-error")) {
+        if ((t == "perc") && (!is.null(boot_ci_val$percent))) {
+          return(c(estimate = boot_mean_median, lower = boot_ci_val$percent[4], upper = boot_ci_val$percent[5]))
+        }
+        if ((t == "basic") && (!is.null(boot_ci_val$basic))) {
+          return(c(estimate = boot_mean_median, lower = boot_ci_val$basic[4], upper = boot_ci_val$basic[5]))
+        }
+        if ((t == "norm") && (!is.null(boot_ci_val$normal))) {
+          return(c(estimate = boot_mean_median, lower = boot_ci_val$normal[2], upper = boot_ci_val$normal[3]))
+        }
+      }
+    }
+    return(c(estimate = boot_mean_median, lower = NA, upper = NA))
+  }
+}
+
+
 ##******************************************
 ## Function to summarise PSA results
 ##******************************************
@@ -527,139 +626,84 @@ psa_summary <- function(
   boot_group_var = boot_group_var,
   ref_strategy = 1,
   wtp = 2693.087,
-  conf = 0.95
+  conf = 0.95,
+  R = 500,
+  ci_type = "perc"
 ) {
 
-  # Wilson ci function
-  wilson_ci <- function(x, conf = 0.95) {
-    n <- length(x)
-    p <- mean(x, na.rm = TRUE)
-    z <- qnorm(1 - (1 - conf)/2)    
-    denom <- 1 + (z^2) / n
-    center <- (p + (z^2) / (2 * n)) / denom
-    half_width <- z * sqrt((p * (1 - p) / n) + (z^2) / (4 * (n^2))) / denom
-    c(
-      lower = center - half_width, 
-      upper = center + half_width
-    )
-  }
-  
-  # function to get bootstrap ci
-  boot_mean_ci <- function(
-    x, 
-    stat = c("median", "mean")[2], 
-    R = 2000, 
-    type = c("norm", "basic", "perc", "bca")[3]
-  ) {  
-    stat <- match.arg(stat) 
-
-    boot_stat <- function(data, indices) {
-      d <- data[indices]
-      if(stat == "median"){
-        median(d, na.rm = TRUE)
-      }else{
-        mean(d, na.rm = TRUE)
-      }
-    }
-
-    boot_obj <- boot::boot(
-      data = x,
-      statistic = boot_stat,
-      R = R
-    )    
-
-    boot_mean <- mean(boot_obj$t, na.rm = TRUE)
-
-    ci <- try(boot::boot.ci(boot_obj, type = type), silent = TRUE)    
-    if (!inherits(ci, "try-error")) {
-      if (type == "norm"  && !is.null(ci$normal)) {
-        return(c(mean = boot_mean, lower = ci$normal[2], upper = ci$normal[3]))
-      }
-      if (type == "basic" && !is.null(ci$basic)) {
-        return(c(mean = boot_mean, lower = ci$basic[4], upper = ci$basic[5]))
-      }
-      if (type == "perc"  && !is.null(ci$percent)) {
-        return(c(mean = boot_mean, lower = ci$percent[4], upper = ci$percent[5]))
-      }
-      if (type == "bca"   && !is.null(ci$bca)) {
-        return(c(mean = boot_mean, lower = ci$bca[4], upper = ci$bca[5]))
-      }
-    } else {
-      fallback_order <- c("perc", "basic", "norm")
-      for (t in fallback_order) {
-        ci <- try(boot::boot.ci(boot_obj, type = t), silent = TRUE)        
-        if (!inherits(ci, "try-error")) {
-          if (t == "perc" && !is.null(ci$percent)) {
-            return(c(mean = boot_mean, lower = ci$percent[4], upper = ci$percent[5]))
-          }
-          if (t == "basic" && !is.null(ci$basic)) {
-            return(c(mean = boot_mean, lower = ci$basic[4], upper = ci$basic[5]))
-          }
-          if (t == "norm" && !is.null(ci$normal)) {
-            return(c(mean = boot_mean, lower = ci$normal[2], upper = ci$normal[3]))
-          }
-        }
-      }
-      return(c(mean = boot_mean, lower = NA, upper = NA))
-    }
-  }
-
-  ## function to get normal ci
-  mean_ci <- function(x, conf = 0.95) {
-    n <- length(x)
-    m <- mean(x, na.rm = TRUE)
-    s <- sd(x, na.rm = TRUE)
-    error <- qt(1 - (1 - conf) / 2, df = n - 1) * (s / sqrt(n))
-    c(lower = m - error, upper = m + error)
-  }
-
-  # significance level
+  ## significance level
   alpha <- (1 - conf) / 2
   probs <- c(alpha, 1 - alpha)
 
   ## reference strategy data
   ref_strategy_df <- data %>%
-    filter(.data[[boot_group_var]] == ref_strategy) %>%
-    mutate(
+    dplyr::filter(.data[[boot_group_var]] == ref_strategy) %>%
+    dplyr::mutate(
       ref_nmb = - (dalys * wtp  + cost),
       ref_nhb = - (dalys + (cost / wtp)),
     ) %>%
-    rename(
+    dplyr::rename(
+      ref_cases = cases,
+      ref_hosp = hosp,
+      ref_deaths = deaths,
       ref_cost = cost,
       ref_dalys = dalys
     ) %>%
-    select(
-      all_of(
-        c("sim", "ref_cost", "ref_dalys", "ref_nmb", "ref_nhb")
+    dplyr::select(
+      dplyr::all_of(
+        c(
+          "sim", 
+          "ref_cases", "ref_hosp", "ref_deaths",
+          "ref_cost", "ref_dalys", 
+          "ref_nmb", "ref_nhb"
+        )
       )
     )
 
   ## comparator strategy data
   comp_strategy_df <- data %>%
-    filter(.data[[boot_group_var]] != ref_strategy) %>%
-    mutate(
+    dplyr::filter(.data[[boot_group_var]] != ref_strategy) %>%
+    dplyr::mutate(
       comp_nmb = - (dalys * wtp + cost),
       comp_nhb = - (dalys + (cost / wtp)),
     ) %>%
-    rename(
+    dplyr::rename(
+      comp_cases = cases,
+      comp_hosp = hosp,
+      comp_deaths = deaths,
       comp_cost = cost,
       comp_dalys = dalys
     ) %>%  
-    select(
-      all_of(
-        c("sim", "wtp", "comp_cost", "comp_dalys", "comp_nmb", "comp_nhb")
+    dplyr::select(
+      dplyr::all_of(
+        c(
+          "sim", 
+          "wtp", 
+          "comp_cases", "comp_hosp", "comp_deaths",
+          "comp_cost", "comp_dalys", 
+          "comp_nmb", "comp_nhb"
+        )
       )
     )
   
   ## combined data
   cea_df <- comp_strategy_df %>%
-    left_join(ref_strategy_df, by = "sim") %>%
-    mutate(
+    dplyr::left_join(ref_strategy_df, by = "sim") %>%
+    dplyr::mutate(
+      ref_inc_cases = -(ref_cases - ref_cases),
+      comp_inc_cases = -(comp_cases - ref_cases),
+
+      ref_inc_hosp = -(ref_hosp - ref_hosp),
+      comp_inc_hosp = -(comp_hosp - ref_hosp),
+
+      ref_inc_deaths = -(ref_deaths - ref_deaths),
+      comp_inc_deaths = -(comp_deaths - ref_deaths),
+ 
       ref_inc_cost = ref_cost - ref_cost,
       comp_inc_cost = comp_cost - ref_cost,
 
       ref_inc_dalys = - (ref_dalys - ref_dalys),
-      comp_inc_dalys = - (comp_dalys - ref_dalys),      
+      comp_inc_dalys = - (comp_dalys - ref_dalys),
 
       ref_inmb = ref_nmb - ref_nmb,
       comp_inmb = comp_nmb - ref_nmb,
@@ -672,124 +716,137 @@ psa_summary <- function(
 
       ref_icer = NA,
       comp_icer = comp_inc_cost / comp_inc_dalys
-
     )
   
   ## outcome means and medians of costs and effectieness measures by strategy
-  ## means
-  mean_df <- cea_df %>%
-    group_by(wtp) %>%
-    dplyr::summarise(
-    dplyr::across(
-      dplyr::all_of(
-        c("ref_ce", "comp_ce")
-      ), 
-      mean, 
-      na.rm = TRUE
-    ),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    ref_ce = 100 * ref_ce,
-    comp_ce = 100 * comp_ce
-  )
-  
-  ## medians
-  median_df <- cea_df %>%
-    group_by(wtp) %>%
-    dplyr::summarise(
-      dplyr::across(
-        dplyr::all_of(
-          c(
-            "ref_cost", "comp_cost",
-            "ref_dalys", "comp_dalys",
-            "ref_nmb", "comp_nmb", 
-            "ref_nhb", "comp_nhb",  
-            "ref_inc_cost", "comp_inc_cost",
-            "ref_inc_dalys", "comp_inc_dalys",
-            "ref_inmb", "comp_inmb",
-            "ref_inhb", "comp_inhb"
-          )
-        ),
-        ~ boot_mean_ci(.x, stat = "mean", type = "perc")["mean"],
-        .names = "{.col}"
-      ),
-      .groups = "drop"
-    )
-  
-  ## mean/medians
-  mean_median_df <- median_df %>%
-    dplyr::left_join(mean_df, by = "wtp")
-
-  # ci for probability of being cost-effective
+  ## cost-effectiveness probability
   ce_df <- cea_df %>%
     dplyr::group_by(wtp) %>%
-    dplyr::summarise(
-      dplyr::across(
-        dplyr::all_of(
-          c("ref_ce", "comp_ce")
-        ),
-        list(
-          lower = ~ wilson_ci(.x)[1] * 100,
-          upper = ~ wilson_ci(.x)[2] * 100
-        ),
-        .names = "{.col}_{.fn}"
-      ),
-      .groups = "drop"
-    ) 
-  
-  # ci for other economic measures
-  ci_df <- cea_df %>%
-    dplyr::group_by(wtp) %>%
-    dplyr::summarise(
-      dplyr::across(
-        dplyr::all_of(c(
-          "ref_cost", "comp_cost",
-          "ref_dalys", "comp_dalys",
-          "ref_nmb", "comp_nmb", 
-          "ref_nhb", "comp_nhb",  
-          "ref_inc_cost", "comp_inc_cost",
-          "ref_inc_dalys", "comp_inc_dalys",
-          "ref_inmb", "comp_inmb",
-          "ref_inhb", "comp_inhb"
-        )),
-        list(
-          lower = ~ boot_mean_ci(.x, stat = "mean", type = "perc")["lower"],
-          upper = ~ boot_mean_ci(.x, stat = "mean", type = "perc")["upper"]
-        ),
-        .names = "{.col}_{.fn}"
-      ),
-      .groups = "drop"
-    )
-    
-  # combine
-  out_wide <- mean_median_df %>%
-    dplyr::left_join(ci_df, by = "wtp") %>%
-    dplyr::left_join(ce_df, by = "wtp") 
+    dplyr::group_modify(function(df, keys) {
+      purrr::map_dfc(
+        c("ref_ce", "comp_ce"),
+        function(v) {
+          x <- df[[v]]
+          ci <- wilson_ci(x)
+          tibble::tibble(
+            !!paste0(v, "_estimate") := mean(x, na.rm = TRUE) * 100,
+            !!paste0(v, "_lower") := ci[1] * 100,
+            !!paste0(v, "_upper") := ci[2] * 100
+          )
+        }
+      )
+    })
 
+  ## econ outcomes
+  vars <- c(
+    "ref_cases", "comp_cases", 
+    "ref_hosp", "comp_hosp", 
+    "ref_deaths", "comp_deaths",
+    ##
+    "ref_cost", "comp_cost",
+    "ref_dalys", "comp_dalys",
+    ##
+    "ref_nmb", "comp_nmb",
+    "ref_nhb", "comp_nhb",
+    ##
+    "ref_inc_cases", "comp_inc_cases", 
+    "ref_inc_hosp", "comp_inc_hosp", 
+    "ref_inc_deaths", "comp_inc_deaths",
+    ##
+    "ref_inc_cost", "comp_inc_cost",
+    "ref_inc_dalys", "comp_inc_dalys",
+    ##
+    "ref_inmb", "comp_inmb",
+    "ref_inhb", "comp_inhb",
+    "ref_icer", "comp_icer"
+  )
+
+  ## means and CIs of economic outcomes
+  means_df <- cea_df %>%
+    dplyr::group_by(wtp) %>%
+    dplyr::group_modify(function(df, keys) {
+      purrr::map_dfc(vars, function(v) {
+        res <- boot_ci_func(
+          df[[v]],
+          stat = "mean",
+          R = R,
+          type = ci_type
+        )
+        tibble::as_tibble(
+          setNames(
+            list(
+              res["estimate"],
+              res["lower"],
+              res["upper"]
+            ),
+            c(
+              paste0(v, "_estimate_mean"),
+              paste0(v, "_lower_mean"),
+              paste0(v, "_upper_mean")
+            )
+          )
+        )
+      })
+    })
+
+  ## medians and CIs of economic outcomes
+  medians_df <- cea_df %>%
+    dplyr::group_by(wtp) %>%
+    dplyr::group_modify(function(df, keys) {
+      purrr::map_dfc(vars, function(v) {
+        res <- boot_ci_func(
+          df[[v]],
+          stat = "median",
+          R = R,
+          type = ci_type
+        )
+        tibble::as_tibble(
+          setNames(
+            list(
+              res["estimate"],
+              res["lower"],
+              res["upper"]
+            ),
+            c(
+              paste0(v, "_estimate_median"),
+              paste0(v, "_lower_median"),
+              paste0(v, "_upper_median")
+            )
+          )
+        )
+      })
+    })
+      
+  ## combine (wide format)
+  out_wide <- means_df %>%
+    dplyr::left_join(medians_df, by = "wtp") %>%
+    dplyr::left_join(ce_df, by = "wtp")
+
+  ## transform in long format
   out_long <- out_wide %>%
-    pivot_longer(
+    tidyr::pivot_longer(
       cols = - wtp,
       names_to = c("strategy", "variable", "stat"),
       names_pattern = "^(ref|comp)_(.*?)(?:_(lower|upper))?$",
       values_to = "value"
     ) %>%
     dplyr::mutate(
-      stat = ifelse(is.na(stat), "mean", stat),
+      stat = ifelse(is.na(stat), "estimate", stat),
       var_stat = dplyr::case_when(
-        stat == "mean" ~ variable, 
+        stat == "estimate" ~ variable, 
         TRUE ~ paste(variable, stat, sep = "_")
       ),
       var_stat = sub("_$", "", var_stat)
     ) %>%
     dplyr::select(strategy, var_stat, value)
   
+  ## final output
   out_final <- out_long %>%
     tidyr::pivot_wider(
       names_from = var_stat,
       values_from = value
     ) %>%
-    mutate(
+    dplyr::mutate(
       strategy = case_when(
         strategy == "ref" ~ "1",
         strategy == "comp" ~ "2",
@@ -797,9 +854,9 @@ psa_summary <- function(
       ) 
     )
 
-  out_final
+  ## return output
+  return(out_final)
 }
-
 
 #################################################################################################
 ## END OF MODULE

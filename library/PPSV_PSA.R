@@ -2,23 +2,7 @@
 ##* Probabilistic Sensitivity Analysis (PSA)
 ##******************************************************************************
 
-## Define parameter specifications for PSA
-par_mean <- ppsv23_params_value
-par_lower <- ppsv23_params_lower
-par_upper <- ppsv23_params_upper
-dist <- ppsv23_params_dist
-
-params_dist <- fit_distributions_from_ci(
-  par_mean, 
-  par_lower, 
-  par_upper, 
-  dist
-) %>%
-as.data.frame()
-
-
-
-# Helper function to format numbers
+## helper function to format numbers
 format_num <- function(x) {
   ifelse(
     is.na(x), 
@@ -37,6 +21,22 @@ format_num <- function(x) {
   )
 }
 
+## define parameter specifications for PSA
+par_mean <- ppsv23_params_value
+par_lower <- ppsv23_params_lower
+par_upper <- ppsv23_params_upper
+dist <- ppsv23_params_dist
+
+params_dist <- fit_distributions_from_ci(
+  par_mean, 
+  par_lower, 
+  par_upper, 
+  dist
+) %>%
+as.data.frame()
+
+
+## data table
 dist_table_df <- params_dist %>%
   mutate(
     dist_label = case_when(      
@@ -79,9 +79,7 @@ dist_table_df <- params_dist %>%
   select(Label, Distribution) %>%
   rename(Parameter = Label)
 
-head(dist_table_df)
-
-# Create the flextable
+## create the flextable
 ft <- flextable(dist_table_df) %>%
   autofit() %>%
   theme_vanilla() %>%
@@ -91,8 +89,6 @@ ft <- flextable(dist_table_df) %>%
   ) %>%
   bold(part = "header") 
 
-# Preview in RStudio Viewer
-ft
 
 ## save to word
 save_as_docx(
@@ -100,16 +96,13 @@ save_as_docx(
   path = file.path(ppsv23_tables_dir, "calib_params.docx")
 )  
 
-
-
-
-## Generate PSA input matrix
+## generate PSA input matrix
 psa_params <- draw_param_func(
   fit_obj = params_dist, 
   n_sim = n_sim
 )
 
-## Run PSA using the CEA function
+## run PSA using the CEA function
 psa_results_3gdp <- rbindlist(
   lapply(
     X = 1:n_sim, 
@@ -131,7 +124,7 @@ psa_results_3gdp <- rbindlist(
   )
 )
 
-## Summarize PSA results
+## summarize PSA results
 summary_results_3gdp <- psa_results_3gdp %>%
   dplyr::group_by(strategy) %>%
   dplyr::summarise(
@@ -196,7 +189,7 @@ mcd <- covMcd(
   alpha = 1.00,
   nsamp = n_sim
 )
-# mcd <- MASS::cov.trob(df[, vars])
+
 md_robust <- mahalanobis(
   x = as.matrix(df[, vars]), 
   center = mcd$center, 
@@ -204,9 +197,6 @@ md_robust <- mahalanobis(
 )
 
 level <- 0.95
-# nrow_df <- nrow(df[, vars])
-# nvars <- 2
-# threshold <- nvars * (nrow_df - 1) / (nrow_df - nvars) * qf(level, nvars, nrow_df - nvars)
 threshold <- qchisq(level, df = length(vars))
 df_inside <- df[md_robust <= threshold, ]
 
@@ -282,7 +272,7 @@ ggsave(
 )
 
 ##******************************************
-## Plot CEAC or cloud (costs and DALYS)
+## plot CEAC or cloud (costs and DALYS)
 ##******************************************
 plot_data_new <- psa_results_3gdp %>%
   dplyr::mutate(
@@ -302,31 +292,36 @@ vars_new <- c("dalys", "cost_hc")
 
 ## compute robust center and cov for the whole dataset
 df_new <- df_new %>%
-  group_by(strategy) %>%
-  group_modify(~{
-    dat <- .x
-    if(nrow(dat) < 6) {
-      dat$md_robust <- NA
-      dat$inside_robust <- NA
-      return(dat)
-    }
-    mcd_g <- covMcd(
-      x = dat[, vars_new], 
-      alpha = 1.00,
-      nsamp = n_sim
-    )
-    dat$md_robust <- mahalanobis(
-      x = as.matrix(dat[, vars_new]),
-      center = mcd_g$center,
-      cov = mcd_g$cov
-    )
-    dat$inside_robust <- dat$md_robust <= qchisq(0.95, df = length(vars_new))
-    dat
-  }) %>% ungroup()
+  dplyr::group_by(strategy) %>%
+  dplyr::group_modify(
+    ~ {
+        dat <- .x
+        if(nrow(dat) < 6) {
+          dat$md_robust <- NA
+          dat$inside_robust <- NA
+          return(dat)
+        }
+
+        mcd_g <- covMcd(
+          x = dat[, vars_new], 
+          alpha = 1.00,
+          nsamp = n_sim
+        )
+
+        dat$md_robust <- mahalanobis(
+          x = as.matrix(dat[, vars_new]),
+          center = mcd_g$center,
+          cov = mcd_g$cov
+        )
+        dat$inside_robust <- dat$md_robust <= qchisq(0.95, df = length(vars_new))
+        dat
+      }
+  ) %>% 
+  ungroup()
 
 df_inside_new <- df_new %>%
-  group_by(sim) %>%
-  filter(any(inside_robust == TRUE)) %>%
+  dplyr::group_by(sim) %>%
+  dplyr::filter(any(inside_robust == TRUE)) %>%
   ungroup()
 
 ## plot
@@ -389,16 +384,20 @@ psa_results_3gdp_renamed <- psa_results_3gdp %>%
     cost = cost_hc, 
     wtp = wtp_who_gdp
   ) %>%
-  dplyr::select(sim, strategy, cost, dalys, wtp) 
+  dplyr::select(
+    sim, strategy, 
+    cases, hosp, deaths, 
+    cost, dalys, wtp
+  ) 
 
 psa_summary_results <- psa_summary(
   data = psa_results_3gdp_renamed,
   boot_group_var = "strategy",
   ref_strategy = "1",
-  wtp = unique(psa_results_3gdp$wtp_who_gdp)[1]
+  wtp = unique(psa_results_3gdp$wtp_who_gdp)[1],
+  R = n_boot_reps,
+  ci_type = "perc"
 )
-
-# View(psa_summary_results)
 
 ##******************************************
 ## Cost-effectiveness acceptability curve (CEAC)
@@ -443,7 +442,7 @@ ceac_long <- ceac_results %>%
   ) %>%
   dplyr::select(wtp, strategy, mean, lower, upper)
 
-## Plot CEAC
+## plot CEAC
 p_ceac <- ceac_long %>%
   ggplot(., aes(x = wtp, y = mean, group = strategy, color = strategy, fill = strategy)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, color = NA) +

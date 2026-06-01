@@ -31,6 +31,7 @@ gdp_params <- readxl::read_xlsx(
   sheet = "gdp_per_capita", 
   range = "A4:BQ270"
 )
+
 bfa_gdp <- gdp_params %>%
   dplyr::filter(`Country Code` == "BFA") %>%
   dplyr::select(!(c("Country Name", "Country Code", "Indicator Name", "Indicator Code")))
@@ -44,7 +45,7 @@ temp_ppsv23_params <- readxl::read_xlsx(
 )
 
 ppsv23_params <- temp_ppsv23_params %>%
-  filter(!is.na(Parameter))
+  dplyr::filter(!is.na(Parameter))
 
 ## Convert parameters to a named vector
 ppsv23_params_label <- ppsv23_params$Label
@@ -90,30 +91,30 @@ names(ppsv23_params_cpi) <- ppsv23_params$Parameter
 ## Estimates for the text
 ##******************************************************************************
 w_med_vsly_value <- round(
-  Hmisc::wtd.quantile(
+  x = Hmisc::wtd.quantile(
     x = c(6229.00, 12457.00), 
     weights = c(736.00, 714.00), 
     probs = 0.5
   ) / 1862.00, 
-  2
+  digits = 2
 )
 
 w_med_vsly_low <- round(
-  Hmisc::wtd.quantile(
+  x = Hmisc::wtd.quantile(
     x = c(3716.00, 527.00), 
     weights = c(736.00, 714.00), 
     probs = 0.5
   ) / 1862.00, 
-  2
+  digits = 2
 )
 
 w_med_vsly_high <- round(
-  Hmisc::wtd.quantile(
+  x = Hmisc::wtd.quantile(
     x = c(8742.00, 24387.00), 
     weights = c(736.00, 714.00), 
     probs = 0.5
   ) / 1862.00, 
-  2
+  digits = 2
 )
 
 #################################################################################################
