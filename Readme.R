@@ -5,7 +5,7 @@
 ## Users assume full responsibility for verifying results and ensuring suitability for their 
 ## specific applications.
 ##
-## Suggested citation: [BLINDED FOR REVIEW] (2026). CEA of PPSV23 in Children Under 5 Years With 
+## Suggested citation: Nourhussein I, Patenaude B, Drabo EF (2026). CEA of PPSV23 in Children Under 5 Years With 
 ## SCD in Burkina Faso - R implementation. Available at: [https://github.com/edraboemf/SCD-PPSV23-CEA]
 ##
 ## Instructions:
