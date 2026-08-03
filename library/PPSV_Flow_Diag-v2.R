@@ -2,7 +2,10 @@
 ## DECISION TREE MODEL DIAGRAM
 ###################################################################################################******************************************************************************
 
-dir.exists(ppsv23_figures_dir)
+# dir.exists(ppsv23_figures_dir)
+
+library(dplyr)
+library(DiagrammeR)
 
 svg_txt <- grViz("
 digraph decision_tree {
@@ -143,12 +146,12 @@ svg_raw <- charToRaw(svg_txt)
 
 print(length(svg_raw))
 
-rsvg::rsvg_png(
-    svg = svg_raw,
-    file = file.path(ppsv23_figures_dir, "decisiontree.png")#,
-    #width  = 4000,
-    #height = 3000
-  )
+# rsvg::rsvg_png(
+#     svg = svg_raw,
+#     file = file.path(ppsv23_figures_dir, "decisiontree.png")#,
+#     #width  = 4000,
+#     #height = 3000
+#   )
 
 #################################################################################################
 ## END OF MODULE

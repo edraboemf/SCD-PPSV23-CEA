@@ -6,6 +6,8 @@ rm(list=ls())
 ## Associate Professor of Health Economic Evaluation
 ## Department of Health Technology Assessment (HTA)
 ## Erasmus School of Health Policy & Management (ESHPM)
+## Rotterdam, Netherlands
+## Email: drabo@eshpm.eur.nl
 #################################################################################################
 
 ##******************************************************************************
